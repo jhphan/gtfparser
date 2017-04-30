@@ -1,9 +1,4 @@
 MIBLAB=/opt/miblab
-OPENCV=/opt/opencv
-LAPACK=/home/jphan/Projects/CodeTree/lapack-3.2.1
-MYSQLINC=/usr/include/mysql
-MYSQLLIB=/usr/lib64/mysql
-BOOST=/home/jphan/Projects/CodeTree/boost_1_42_0
 
 CC=g++
 
@@ -115,38 +110,6 @@ transcriptome_to_genome2: ./obj/transcriptome_to_genome2.o ./obj/transcript.o ./
 	$(CC) -c -O2 -o ./obj/transcriptome_to_genome2.o \
 		./src/transcriptome_to_genome2.cpp \
 		-I$(MIBLAB)/include
-
-#--------------
-./obj/seqc_db.o: ./src/seqc_db.cpp ./include/seqc_db.h
-	$(CC) -c -O2 -o ./obj/seqc_db.o \
-		./src/seqc_db.cpp \
-		-I$(MIBLAB)/include
-
-#--------------
-seqc_upload_quantification: ./obj/seqc_upload_quantification.o ./obj/seqc_db.o
-	$(CC) -o ./seqc_upload_quantification ./obj/seqc_upload_quantification.o \
-		./obj/seqc_db.o \
-		-L$(MIBLAB)/lib -lmiblab \
-		-L$(MYSQLLIB) -lmysqlclient
-
-./obj/seqc_upload_quantification.o: ./src/seqc_upload_quantification.cpp
-	$(CC) -c -O2 -o ./obj/seqc_upload_quantification.o \
-		./src/seqc_upload_quantification.cpp \
-		-I$(MIBLAB)/include \
-		-I$(MYSQLINC)
-
-#--------------
-seqc_extract_expression: ./obj/seqc_extract_expression.o ./obj/seqc_db.o
-	$(CC) -o ./seqc_extract_expression ./obj/seqc_extract_expression.o \
-		./obj/seqc_db.o \
-		-L$(MIBLAB)/lib -lmiblab \
-		-L$(MYSQLLIB) -lmysqlclient
-
-./obj/seqc_extract_expression.o: ./src/seqc_extract_expression.cpp
-	$(CC) -c -O2 -o ./obj/seqc_extract_expression.o \
-		./src/seqc_extract_expression.cpp \
-		-I$(MIBLAB)/include \
-		-I$(MYSQLINC)
 
 #--------------
 clean:

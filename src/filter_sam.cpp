@@ -31,6 +31,22 @@ void usage() {
 	cout << "\t-filter [mapped/unmapped]" << endl;
 }
 
+bool pair_consistent(vector<string>& vec_sam_1, vector<string>& vec_sam_2) {
+	if (vec_sam_1[2] != vec_sam_2[2]) {
+		// pair doesn't map to the same reference sequence
+		return false;
+	}
+	if (vec_sam_1[3] != vec_sam_2[7]) {
+		// first end and second end mate pos do not match
+		return false;
+	}
+	if (vec_sam_2[3] != vec_sam_1[7]) {
+		// second end and first end mate pos do not match
+		return false;
+	}
+	return true;
+}
+
 bool filter_sam(string str_sam_file, bool b_mapped) {
 
 	FILE* file_sam;
@@ -41,43 +57,111 @@ bool filter_sam(string str_sam_file, bool b_mapped) {
 		return false;
 	}
 
-	char ch_buf1[MAX_BUF_LEN];
-	char ch_buf2[MAX_BUF_LEN];
-	while (read_line(file_sam, ch_buf1)) {
-		if (ch_buf1[0] == '@') {
+	string str_sam_1;
+	string str_sam_2;
+	vector<string> vec_sam_1 = vector<string>();
+	vector<string> vec_sam_2 = vector<string>();
+	int i_flag_1 = 0;
+	int i_flag_2 = 0;
+
+	char ch_buf[MAX_BUF_LEN];
+	while (read_line(file_sam, ch_buf)) {
+		if (ch_buf[0] == '@') {
 			// header line
-			cout << ch_buf1 << endl;
+			cout << ch_buf << endl;
 		} else {
-			vector<string> vec_sam_1 = StringTokenizer(ch_buf1, '\t').split();
-			// read next line
-			if (!read_line(file_sam, ch_buf2)) {
-				cerr << "!error: filter_sam: filter_sam(): odd number of reads?" << endl;
-				return false;
-			}
-			vector<string> vec_sam_2 = StringTokenizer(ch_buf2, '\t').split();
-			if (vec_sam_1[0] != vec_sam_2[0]) {
-				cerr << "!error: filter_sam: filter_sam(): adjacent reads don't match, must be sorted by queryname" << endl;
-				return false;
-			}
-			int i_flag_1 = atoi(vec_sam_1[1].c_str());
-			int i_flag_2 = atoi(vec_sam_2[1].c_str());
-			if (
-				(i_flag_1 == 83 && i_flag_2 == 163) ||
-				(i_flag_1 == 163 && i_flag_2 == 83) ||
-				(i_flag_1 == 99 && i_flag_2 == 147) ||
-				(i_flag_1 == 147 && i_flag_2 == 99)
-			) {
-				// correctly paired and mapped
-				if (b_mapped) {
-					cout << ch_buf1 << endl;
-					cout << ch_buf2 << endl;
+			if (i_flag_1 == 0) {
+				// first of pair has not been found
+				str_sam_1 = string(ch_buf);
+				vec_sam_1 = StringTokenizer(str_sam_1, '\t').split();
+				i_flag_1 = atoi(vec_sam_1[1].c_str());
+				
+				bool b_valid = false;
+				if (
+					i_flag_1 == 83 || i_flag_1 == 163
+					|| i_flag_1 == 99 || i_flag_1 == 147
+					|| i_flag_1 == 355 || i_flag_1 == 403
+					|| i_flag_1 == 339 || i_flag_1 == 419
+				) b_valid = true;
+
+
+				if (!b_valid && i_flag_1 > 255) {
+					i_flag_1 = 0;
 				}
+//				if ( 
+//					(!b_valid && b_mapped)
+//					|| (!b_mapped && i_flag_1 > 255)
+//				) {
+//					i_flag_1 = 0;
+//				}
 			} else {
-				// unmapped
-				if (!b_mapped) {
-					cout << ch_buf1 << endl;
-					cout << ch_buf2 << endl;
+				if (i_flag_2 == 0) {
+					// first of pair has been found, but not second
+					str_sam_2 = string(ch_buf);
+					vec_sam_2 = StringTokenizer(str_sam_2, '\t').split();
+					i_flag_2 = atoi(vec_sam_2[1].c_str());
+
+					bool b_valid = false;
+					if (
+						i_flag_2 == 83 || i_flag_2 == 163
+						|| i_flag_2 == 99 || i_flag_2 == 147
+						|| i_flag_2 == 355 || i_flag_2 == 403
+						|| i_flag_2 == 339 || i_flag_2 == 419
+					) b_valid = true;
+
+					if (!b_valid && i_flag_2 > 255) {
+						i_flag_2 = 0;
+					}
+//					if (
+//						(!b_valid && b_mapped)
+//						|| (!b_mapped && i_flag_2 > 255)
+//					) {
+//						i_flag_2 = 0;
+//					}
 				}
+			}
+
+			if (i_flag_1 > 0 && i_flag_2 > 0) {
+				// found a pair
+				if (vec_sam_1[0] != vec_sam_2[0]) {
+					cerr << "!error: filter_sam: filter_sam(): adjacent reads don't match" << endl;
+					cerr << str_sam_1 << endl;
+					cerr << str_sam_2 << endl;
+					return false;
+				}
+
+				// check if it's a correct pair
+				if (
+					(i_flag_1 == 83 && i_flag_2 == 163) ||
+					(i_flag_1 == 163 && i_flag_2 == 83) ||
+					(i_flag_1 == 99 && i_flag_2 == 147) ||
+					(i_flag_1 == 147 && i_flag_2 == 99) ||
+					(i_flag_1 == 355 && i_flag_2 == 403) ||
+					(i_flag_1 == 403 && i_flag_2 == 355) ||
+					(i_flag_1 == 339 && i_flag_2 == 419) ||
+					(i_flag_1 == 419 && i_flag_2 == 339)
+				) {
+					if (pair_consistent(vec_sam_1, vec_sam_2)) {
+						if (b_mapped) {
+							cout << str_sam_1 << endl;
+							cout << str_sam_2 << endl;
+						}
+					} else {
+						if (!b_mapped) {
+							if (i_flag_1 < 256) { // ignore secondary hits
+								cout << str_sam_1 << endl;
+								cout << str_sam_2 << endl;
+							}
+						}
+					}
+				} else {
+					if (!b_mapped) {
+						cout << str_sam_1 << endl;
+						cout << str_sam_2 << endl;
+					}
+				}
+				i_flag_1 = 0;
+				i_flag_2 = 0;
 			}
 		}
 	}
